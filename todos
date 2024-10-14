@@ -1,0 +1,29 @@
+Ring 0 tasks
+[x] 1. Printf (kind of simple but is)
+[S] 2. Change structure (a bit)
+[E] 3. Stack smash protector
+[ ] 4. Change structure of loading GDT
+[ ] 5. Improve malloc() - free()
+[ ] 6. Enhance paging managment
+[ ] 7. Multithreaded kernel (to read about)
+[ ] 8. Timer for making timeouts in floppy driver ( harder )
+[ ] 9. Internal Kernel Debugger ( harder )
+[ ] 10. ATA / SATA driver
+[ ] 11. PCI driver
+[ ] 12. Real time clock
+[ ] 13. EXT2 driver
+[ ] 14. Improve keyboard driver
+
+Well and after that maybe we can go to the user space and here:
+0. Move to ring 3, setup GDT, IDT, PD (Paging Directory)
+1. Task scheduler ( Can be even prioretized Round-robin scheduler ) (Well first we can also start with cooperative multitasking)
+2. Shell
+3. TTY's / Streams
+4. Loading programs from ELF
+5. Toolchain
+6. USB
+and many other stuff.....
+
+x - DONE
+S - Scheduled
+E - Have some issues to resolve later

@@ -1,0 +1,18 @@
+#include "../cpu/types.h"
+
+#define VIDEO_ADDRESS 0xb8000
+#define MAX_ROWS 25
+#define MAX_COLS 80
+#define WHITE_ON_BLACK 0x0f
+#define RED_ON_BLACK 0x04
+
+#define REG_SCREEN_CTRL 0x3d4
+#define REG_SCREEN_DATA 0x3d5
+
+void clear_screen();
+void kprint_at(char *message, int col, int row);
+void kprint(char* message);
+void kprint_at_size(char* message, u32 size, int col, int row);
+void kprint_size(char* message, u32 size);
+void kprint_char_at(char letter, int col, int row);
+void kprint_char(char letter);
