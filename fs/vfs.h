@@ -47,9 +47,9 @@ enum E_PARTITION {
 };
 
 enum VFS_ACCESS_MODES {
-    READ_ACCESS       = 0x01,
+    EXECUTE_ACCESS    = 0x01,
     WRITE_ACCESS      = 0x02,
-    READ_WRITE_ACCESS = READ_ACCESS | WRITE_ACCESS,
+    READ_ACCESS       = 0x04,
 };
 
 enum NODE_TYPE{
@@ -78,6 +78,24 @@ enum E_FILE {
     E_FILE_CORRUPTED = 2,
 };
 
+enum SEEK {
+    SEEK_SET = 0x01,
+    SEEK_CUR = 0x02,
+    SEEK_END = 0x04,
+};
+
+enum E_LSEEK {
+    E_LSEEK_BADF = 0x01,
+    E_LSEEK_INVAL = 0x02,
+    E_LSEEK_SPIPE = 0x04,
+    E_LSEEK_NXIO = 0x08,
+};
+
+enum O_FLAGS {
+    O_CREAT = 0x01,
+    O_DIR = 0x02,
+};
+
 
 // VFS methods
 
@@ -91,14 +109,14 @@ int vfs_is_node_empty(struct VFS_NODE *node);
 ///
 
 // Device functions
-typedef enum E_DEVICE (*READ_DEVICE  )(VFS_DEVICE*, void* buffer, u32 sectors, u32 lba);
-typedef enum E_DEVICE (*WRITE_DEVICE )(VFS_DEVICE*, void* buffer, u32 sectors, u32 lba);
+typedef enum E_DEVICE (*READ_DEVICE  )(VFS_DEVICE*, void* buffer, uint32_t sectors, uint32_t lba);
+typedef enum E_DEVICE (*WRITE_DEVICE )(VFS_DEVICE*, void* buffer, uint32_t sectors, uint32_t lba);
 
 // File creation/deletion functions
 typedef VFS_NODE* (*OPEN_FILE)  (VFS_PARTITION*,VFS_NODE* dir,
-                                        char* path, enum VFS_ACCESS_MODES flags);
+                                        char* path, int flags);
 typedef int              (*CREATE_FILE)(VFS_PARTITION*, VFS_NODE* dir,
-                                        char* path, enum VFS_ACCESS_MODES flags);
+                                        char* path,  int flags);
 typedef int              (*RMV_FILE)   (VFS_PARTITION*, VFS_NODE* dir,
                                         char* path);
 
@@ -111,15 +129,16 @@ typedef int              (*RMV_DIR)    (VFS_PARTITION*, VFS_NODE* dir,
                                         char* path);
 
 // Node functions (file-only)
-typedef int              (*WRITE_FILE) (VFS_NODE* node, void* buffer, u32 size, u32 offset);
-typedef int              (*READ_FILE)  (VFS_NODE* node, void* buffer, u32 size, u32 offset);
+typedef int              (*WRITE_FILE) (VFS_NODE* node, void* buffer, uint32_t size);
+typedef int              (*READ_FILE)  (VFS_NODE* node, void* buffer, uint32_t size);
+typedef int              (*LSEEK)      (VFS_NODE* node, int32_t offset, enum SEEK whence);
 
 // Node functions (directory-only)
-typedef int              (*LIST_DIR)   (VFS_NODE* node, DIR_ENTRY* buffer, u32* size);
+typedef int              (*LIST_DIR)   (VFS_NODE* node, DIR_ENTRY* buffer, uint32_t size);
 
 struct VFS_NODE_INFO{
     char name[64];
-    u32 size;
+    uint32_t size;
     enum VFS_ACCESS_MODES access;
     enum NODE_TYPE type;
 };
@@ -128,15 +147,15 @@ struct VFS_NODE_INFO{
 // Device methods
 enum E_DEVICE vfs_device_register(void* device_data, READ_DEVICE, WRITE_DEVICE,
                                 VFS_DEVICE** device_descriptor);
-enum E_DEVICE vfs_device_read(VFS_DEVICE* device, void* buffer, u32 sectors, u32 lba);
-enum E_DEVICE vfs_device_write(VFS_DEVICE* device, void* buffer, u32 sectors, u32 lba);
+enum E_DEVICE vfs_device_read(VFS_DEVICE* device, void* buffer, uint32_t sectors, uint32_t lba);
+enum E_DEVICE vfs_device_write(VFS_DEVICE* device, void* buffer, uint32_t sectors, uint32_t lba);
 void*         vfs_device_get_data(VFS_DEVICE* device);
 
 // Partition methods
 enum E_PARTITION vfs_partitions_find_on_device(VFS_DEVICE* partition,
                                                enum PARTITION_FORMAT formats,
                                                VFS_PARTITION** partitions,
-                                               u32* size);
+                                               uint32_t* size);
 enum E_PARTITION vfs_register_partition(void* data,
                                         VFS_DEVICE*,
                                         OPEN_FILE, CREATE_FILE,RMV_FILE,
@@ -148,11 +167,11 @@ VFS_DEVICE*      vfs_partition_get_device(VFS_PARTITION* partition);
 
 // File Methods
 enum E_FILE vfs_file_create_descriptor(void* data, VFS_PARTITION* partition,
-                            WRITE_FILE, READ_FILE, LIST_DIR, VFS_NODE** file_descriptor);
+                                       WRITE_FILE, READ_FILE, LSEEK lseek, LIST_DIR, VFS_NODE** file_descriptor);
 void*            vfs_node_get_data(VFS_NODE* node);
 VFS_PARTITION* vfs_node_get_partition(VFS_NODE* node);
-s32 vfs_node_get_offset(VFS_NODE* node);
-s32 vfs_node_move_offset(VFS_NODE* node, s32 translation);
+int32_t vfs_node_get_offset(VFS_NODE* node);
+int32_t vfs_node_move_offset(VFS_NODE* node, int32_t translation);
 
 // Node interface functions
 struct VFS_NODE_INFO info_file(VFS_NODE* file);
@@ -160,14 +179,15 @@ struct VFS_NODE_INFO info_file(VFS_NODE* file);
 // File interface Methods
 VFS_NODE* open_file(char* path, enum VFS_ACCESS_MODES flags);
 VFS_NODE* open_file_relative(VFS_NODE* dir,
-                                    char* relative_path, enum VFS_ACCESS_MODES flags);
+                             char* relative_path, int flags);
 int             make_file(char* path, enum VFS_ACCESS_MODES flags);
 int             make_file_relative(VFS_NODE* dir,
                                    char* relative_path, enum VFS_ACCESS_MODES flags);
 int             rmv_file (char* path);
 int             rmv_file_relative (VFS_NODE* dir, char* path);
-int             write_file (VFS_NODE* node, void* buffer, u32 size, u32 offset);
-int             read_file  (VFS_NODE* node, void* buffer, u32 size, u32 offset);
+int             write_file (VFS_NODE* node, void* buffer, uint32_t size);
+int             read_file  (VFS_NODE* node, void* buffer, uint32_t size);
+int             lseek(VFS_NODE* node, int32_t offset, enum SEEK whence);
 
 
 // Folder intermethods methods
@@ -177,13 +197,14 @@ int             make_dir (char* path);
 int             make_dir_relative (VFS_NODE* dir, char* path);
 int             rmv_dir  (char* path);
 int             rmv_dir_relative  (VFS_NODE* dir, char* path);
-int             list_dir (VFS_NODE* node, DIR_ENTRY* buffer, u32* size);
+int             list_dir (VFS_NODE* node, DIR_ENTRY* buffer, uint32_t size);
 
 
 
 struct DIR_ENTRY{
     char name[32];
     enum NODE_TYPE type;
+    uint32_t size;
 };
 
 #endif //FILEOS_VFS_H

@@ -69,12 +69,12 @@ void str_cpy(char* source, char* destination){
         *(destination++) = *(source++);
 }
 
-void str_cpy_size(char* source, char* destination, u32 size){
-    for (u32 i = 0; i < size && *source; ++i)
+void str_cpy_size(char* source, char* destination, uint32_t size){
+    for (uint32_t i = 0; i < size && *source; ++i)
         *(destination++) = *(source++);
 }
 
-void str_insert(char* str, char x, u16 amount){
+void str_insert(char* str, char x, uint16_t amount){
     int i = 0; char* begin = str;
     while(*str) { str++; i++; }
     for (; i >= 0 ; i--) {
@@ -85,8 +85,32 @@ void str_insert(char* str, char x, u16 amount){
         *(begin++) = x;
 }
 
-u32 str_len(char* str){
-    u32 len = 0;
+uint32_t str_len(const char* str){
+    uint32_t len = 0;
     while(*(str++)) len++;
     return len;
+}
+
+char* strchr(const char* str, char c) {
+    while(*str){
+        if(*str == c) return (char*)str;
+        str++;
+    }
+    return 0;
+}
+
+char* strtok(char* str, char delim) {
+    static char* last = 0;
+    if(str) last = str;
+    if(!last) return 0;
+    char* begin = last;
+    while(*last){
+        if(*last == delim){
+            *last = 0;
+            last++;
+            return begin;
+        }
+        last++;
+    }
+    return begin;
 }

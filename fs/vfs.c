@@ -28,7 +28,7 @@ struct VFS_PARTITION {
     void* partition_data;
 
     // References
-    struct VFS_DEVICE* device;
+    VFS_DEVICE* device;
 
     // Methods
     OPEN_FILE   open_file;
@@ -48,27 +48,28 @@ struct VFS_NODE {
     void* node_data;
 
     // References
-    struct VFS_PARTITION* partition;
+    VFS_PARTITION* partition;
 
     // File methods
     WRITE_FILE  write_file;
     READ_FILE   read_file;
+    LSEEK       lseek;
 
     // Folder methods
     LIST_DIR    list_dir;
 
     // File descriptor info
-    s32 offset;
+    int32_t offset;
 };
 ///
 /// Variables
 ///
 
-static struct VFS_PARTITION vfs_part;
-static struct VFS_DEVICE virtual_devices[16];
+static VFS_PARTITION vfs_part;
+static VFS_DEVICE virtual_devices[16];
 static int virtual_devices_count = 0;
 
-static struct VFS_PARTITION partitions[16];
+static VFS_PARTITION partitions[16];
 static int partitions_count = 0;
 
 ///
@@ -98,7 +99,7 @@ enum E_DEVICE vfs_device_register(void *device_data, READ_DEVICE read, WRITE_DEV
     return E_DEVICE_OK;
 }
 
-enum E_DEVICE vfs_device_read(struct VFS_DEVICE* device, void* buffer, u32 sectors, u32 lba){
+enum E_DEVICE vfs_device_read(VFS_DEVICE* device, void* buffer, uint32_t sectors, uint32_t lba){
     if(!device)
         return E_DEVICE_NOT_FOUND;
     if(!device->read)
@@ -110,7 +111,7 @@ enum E_DEVICE vfs_device_read(struct VFS_DEVICE* device, void* buffer, u32 secto
     return device->read(device, buffer, sectors, lba);
 }
 
-enum E_DEVICE vfs_device_write(struct VFS_DEVICE* device, void* buffer, u32 sectors, u32 lba){
+enum E_DEVICE vfs_device_write(VFS_DEVICE* device, void* buffer, uint32_t sectors, uint32_t lba){
     if(!device)
         return E_DEVICE_NOT_FOUND;
     if(!device->write)
@@ -133,7 +134,7 @@ void*         vfs_device_get_data(VFS_DEVICE* device){
 ///
 
 enum E_PARTITION vfs_partitions_find_on_device(struct VFS_DEVICE* dev, enum PARTITION_FORMAT format,
-                                               struct VFS_PARTITION** parts, u32* size){
+                                               struct VFS_PARTITION** parts, uint32_t* size){
     int current_partitions_count = partitions_count;
     if(format & PARTITION_FORMAT_FAT12)
         ;
@@ -155,7 +156,7 @@ enum E_PARTITION vfs_register_partition(void* data, struct VFS_DEVICE* dev, OPEN
                                         struct VFS_PARTITION* p){
     if(!data || !dev || !open || !crat || !rm || !open_dir || !mkdir || !rmdir)
         return E_PARTITION_NO_FILESYSTEM_DETECTED;
-    struct VFS_PARTITION tmp_partition = {
+    VFS_PARTITION tmp_partition = {
          .partition_data = data,
          .device = dev,
          .open_file = open,
@@ -191,16 +192,17 @@ VFS_DEVICE*      vfs_partition_get_device(VFS_PARTITION* partition){
     return partition->device;
 }
 
-enum E_FILE vfs_file_create_descriptor(void* data, struct VFS_PARTITION* partition,
-                            WRITE_FILE write, READ_FILE read, LIST_DIR list,
-                            struct VFS_NODE** file_descriptor){
+enum E_FILE vfs_file_create_descriptor(void* data, VFS_PARTITION* partition,
+                                       WRITE_FILE write, READ_FILE read, LSEEK lseek,
+                                       LIST_DIR list, VFS_NODE** file_descriptor){
     if(!data || (!write && !read && !list))
         return E_FILE_NOT_FOUND;
-    *file_descriptor = k_malloc(sizeof(struct VFS_NODE));
+    *file_descriptor = k_malloc(sizeof(VFS_NODE));
     (*file_descriptor)->node_data = data;
-    (*file_descriptor)->read_file = read;
     (*file_descriptor)->partition = partition;
+    (*file_descriptor)->read_file = read;
     (*file_descriptor)->write_file = write;
+    (*file_descriptor)->lseek = lseek;
     (*file_descriptor)->list_dir = list;
     return E_FILE_OK;
 }
@@ -215,12 +217,12 @@ struct VFS_PARTITION* vfs_node_get_partition(struct VFS_NODE* node){
     return node->partition;
 }
 
-s32 vfs_node_get_offset(VFS_NODE* node){
+int32_t vfs_node_get_offset(VFS_NODE* node){
     if(!node)
         return -1;
     return node->offset;
 }
-s32 vfs_node_move_offset(VFS_NODE* node, s32 translation){
+int32_t vfs_node_move_offset(VFS_NODE* node, int32_t translation){
     if(!node)
         return -1;
     node->offset += translation;
@@ -248,12 +250,12 @@ struct VFS_NODE* open_file(char* path, enum VFS_ACCESS_MODES flags){
     return file_descriptor;
 }
 
-struct VFS_NODE* open_file_relative(struct VFS_NODE* dir,
-                                    char* relative_path, enum VFS_ACCESS_MODES flags)
+struct VFS_NODE* open_file_relative(VFS_NODE* dir,
+                                    char* relative_path, int flags)
 {
     if(!dir)
         return 0;
-    struct VFS_PARTITION* partition = vfs_node_get_partition(dir);
+    VFS_PARTITION* partition = vfs_node_get_partition(dir);
     return partition->open_file(partition, dir, relative_path, flags);
 }
 
@@ -292,20 +294,28 @@ int             rmv_file_relative (struct VFS_NODE* dir, char* relative_path){
     return partition->remove_file(partition, dir, relative_path);
 }
 
-int             write_file (struct VFS_NODE* node, void* buffer, u32 size, u32 offset){
+int             write_file (struct VFS_NODE* node, void* buffer, uint32_t size){
     if(!node)
         return -1;
     if(!node->write_file)
         return -2;
-    return node->write_file(node, buffer, size, offset);
+    return node->write_file(node, buffer, size);
 }
 
-int             read_file  (struct VFS_NODE* node, void* buffer, u32 size, u32 offset){
+int             lseek(VFS_NODE* node, int32_t offset, enum SEEK whence) {
+    if(!node)
+        return -E_LSEEK_BADF;
+    if(!node->lseek)
+        return -E_LSEEK_SPIPE;
+    return node->lseek(node, offset, whence);
+}
+
+int             read_file  (struct VFS_NODE* node, void* buffer, uint32_t size){
     if(!node)
         return -1;
     if(!node->read_file)
         return -2;
-    return node->read_file(node, buffer, size, offset);
+    return node->read_file(node, buffer, size);
 }
 
 
@@ -363,7 +373,7 @@ int             rmv_dir_relative  (struct VFS_NODE* dir, char* relative_path){
 
 }
 
-int             list_dir (struct VFS_NODE* node, struct DIR_ENTRY* buffer, u32* size){
+int             list_dir (struct VFS_NODE* node, struct DIR_ENTRY* buffer, uint32_t size){
     if(!node)
         return -1;
     return node->list_dir(node, buffer, size);

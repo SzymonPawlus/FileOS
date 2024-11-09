@@ -8,14 +8,14 @@
 
 char key;
 
-char* print_letter(u8 scancode);
+char* print_letter(uint8_t scancode);
 
 isr_t kernel_callback;
 
 int high = 0;
 
 static void keyboard_callback(registers_t reg) {
-    u8 scancode = port_byte_in(0x60);
+    uint8_t scancode = port_byte_in(0x60);
     char* letter = print_letter(scancode);
     if(letter[0] == 'S') high = !high;
     else if(letter[0]) {
@@ -37,7 +37,7 @@ int read_key_buffer(char* buffer){
     return 1;
 }
 
-char* print_letter(u8 scancode) {
+char* print_letter(uint8_t scancode) {
     switch (scancode) {
         case 0x0:
             return "E";

@@ -12,7 +12,7 @@
 void clear_screen();
 void kprint_at(char *message, int col, int row);
 void kprint(char* message);
-void kprint_at_size(char* message, u32 size, int col, int row);
-void kprint_size(char* message, u32 size);
+void kprint_at_size(char* message, uint32_t size, int col, int row);
+void kprint_size(char* message, uint32_t size);
 void kprint_char_at(char letter, int col, int row);
 void kprint_char(char letter);

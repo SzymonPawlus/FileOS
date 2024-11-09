@@ -3,12 +3,12 @@
 
 #include "vfs.h"
 
-enum E_PARTITION     fat32_find_partition(struct VFS_DEVICE *device);
+enum E_PARTITION     fat32_find_partition(VFS_DEVICE *device);
 
 VFS_NODE*            fat32_open_file(VFS_PARTITION *partition, VFS_NODE* dir,
-                                     char* path, enum VFS_ACCESS_MODES flags);
+                                     char* path, int flags);
 int                  fat32_create_file(VFS_PARTITION *partition, VFS_NODE* dir,
-                                       char* path, enum VFS_ACCESS_MODES flags);
+                                       char* path, int flags);
 int                  fat32_remove_file(VFS_PARTITION *partition, VFS_NODE* dir,
                                        char* path);
 
@@ -19,58 +19,59 @@ int                  fat32_make_dir(VFS_PARTITION *partition, VFS_NODE* dir,
 int                  fat32_remove_dir(VFS_PARTITION *partition, VFS_NODE* dir,
                                       char* path);
 
-int                  fat32_write_file (VFS_NODE* node, void* buffer, u32 size, u32 offset);
-int                  fat32_read_file  (VFS_NODE* node, void* buffer, u32 size, u32 offset);
+int                  fat32_write_file (VFS_NODE* node, void* buffer, uint32_t size);
+int                  fat32_read_file  (VFS_NODE* node, void* buffer, uint32_t size);
+int                  fat32_lseek(VFS_NODE* node, int32_t offset, enum SEEK whence);
 
-int                  fat32_list_dir   (VFS_NODE* node, DIR_ENTRY* buffer, u32* size);
+int                  fat32_list_dir   (VFS_NODE* node, DIR_ENTRY* buffer, uint32_t size);
 
 struct FAT32_BPB {
-    u8  jmp_signature[3];
-    u8  oem_identifier[8];
-    u16 bytes_per_sector;
-    u8  sectors_per_cluster;
-    u16 reserved_sectors;
-    u8  fats;
-    u16 directory_entries;
-    u16 sectors_in_volume;
-    u8  media_descriptor_type;
-    u16 sectors_per_fat;
-    u16 sectors_per_track;
-    u16 heads_on_media;
-    u32 hidden_sectors;
-    u32 large_sectors_count;
+    uint8_t  jmp_signature[3];
+    uint8_t  oem_identifier[8];
+    uint16_t bytes_per_sector;
+    uint8_t  sectors_per_cluster;
+    uint16_t reserved_sectors;
+    uint8_t  fats;
+    uint16_t directory_entries;
+    uint16_t sectors_in_volume;
+    uint8_t  media_descriptor_type;
+    uint16_t sectors_per_fat;
+    uint16_t sectors_per_track;
+    uint16_t heads_on_media;
+    uint32_t hidden_sectors;
+    uint32_t large_sectors_count;
 } __attribute__((packed)) ;
 
 struct FAT32_EBR {
-    u32 sectors_per_fat;
-    u16 flags;
-    u16 version;
-    u32 cluster_of_root;
-    u16 sector_of_FSInfo;
-    u16 sector_of_backup;
-    u8  reserved[12];
-    u8  drive_number;
-    u8  windows_flags;
-    u8  signature;
-    u32 volume_ID;
-    u8  volume_label[11];
-    u8  filesystem_ID[8]; // Should be "FAT32   "
-    u8  boot_code[420];
-    u16 boot_signature;
+    uint32_t sectors_per_fat;
+    uint16_t flags;
+    uint16_t version;
+    uint32_t cluster_of_root;
+    uint16_t sector_of_FSInfo;
+    uint16_t sector_of_backup;
+    uint8_t  reserved[12];
+    uint8_t  drive_number;
+    uint8_t  windows_flags;
+    uint8_t  signature;
+    uint32_t volume_ID;
+    uint8_t  volume_label[11];
+    uint8_t  filesystem_ID[8]; // Should be "FAT32   "
+    uint8_t  boot_code[420];
+    uint16_t boot_signature;
 } __attribute__((packed));
 
 struct FAT32_FSINFO {
-    u32 lead_signature;
-    u8  reserved[480];
-    u32 middle_signature;
-    u32 free_clusters;
-    u32 search_start;
-    u8  reserved2[12];
-    u32 trail_signature;
+    uint32_t lead_signature;
+    uint8_t  reserved[480];
+    uint32_t middle_signature;
+    uint32_t free_clusters;
+    uint32_t search_start;
+    uint8_t  reserved2[12];
+    uint32_t trail_signature;
 };
 
 typedef union {
-    u8 buffer[512];
+    uint8_t buffer[512];
     struct {
         struct FAT32_BPB bpb;
         struct FAT32_EBR ebr;
@@ -88,47 +89,48 @@ enum FAT32_DIR_ATTR {
 };
 
 struct FAT32_NODE {
-    s8  filename[11];
-    u8  attributes;
-    u8  reserved_NT;
-    u8  creation_length;
-    u16 creation_time;
-    u16 creation_date;
-    u16 last_accessed_data;
-    u16 high_16_first_cluster;
-    u16 last_modification_time;
-    u16 last_modification_date;
-    u16 start_low;
-    u32 size;
+    int8_t  filename[11];
+    uint8_t  attributes;
+    uint8_t  reserved_NT;
+    uint8_t  creation_length;
+    uint16_t creation_time;
+    uint16_t creation_date;
+    uint16_t last_accessed_data;
+    uint16_t start_high;
+    uint16_t last_modification_time;
+    uint16_t last_modification_date;
+    uint16_t start_low;
+    uint32_t size;
 } __attribute__((packed));
 
-struct FAT32_NODE_INFO {
-    u32 descriptor_cluster;
-    u32 descriptor_offset;
-    u32 first_cluster;
-};
+typedef struct  {
+    uint32_t descriptor_cluster;
+    uint32_t descriptor_offset;
+    struct FAT32_NODE node;
+    uint32_t parent_cluster;
+} FAT32_NODE_INFO;
 
 typedef struct {
-    u8  sectors_per_cluster;
-    u16 reserved_sectors; // FAT beginning sector
-    u8  FATs;
-    u16 root_entries;
-    u32 sectors;
-    u16 sectors_per_fat;
-    u32 hidden_sectors;
+    uint8_t  sectors_per_cluster;
+    uint16_t reserved_sectors; // FAT beginning sector
+    uint8_t  FATs;
+    uint16_t root_entries;
+    uint32_t sectors;
+    uint16_t sectors_per_fat;
+    uint32_t hidden_sectors;
 
-    s8 label[11];
+    int8_t label[11];
 
-    u32 fat_offset;
-    u32 data_offset;
-    u32 backup_boot_offset;
-    u32 fsinfo_offset;
-    u32 root_size;
+    uint32_t fat_offset;
+    uint32_t data_offset;
+    uint32_t backup_boot_offset;
+    uint32_t fsinfo_offset;
+    uint32_t root_size;
 
-    u32 root_sector;
+    uint32_t root_sector;
 
-    u32 buffer[0x80]; // 1 disk sectors sized buffer
-    u32 current_sector; // Sector of FAT that was currently loaded
+    uint32_t buffer[0x80]; // 1 disk sectors sized buffer
+    uint32_t current_sector; // Sector of FAT that was currently loaded
     int buffer_loaded;
     int buffer_changed;
 
@@ -136,7 +138,7 @@ typedef struct {
 
 
 typedef struct {
-    u32 sector;
-    u8 offset;
+    uint32_t sector;
+    uint8_t offset;
 } __attribute__((packed)) FAT32_NODE_POSITION;
 #endif // FAT32_H_

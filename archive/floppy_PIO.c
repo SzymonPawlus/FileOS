@@ -14,18 +14,18 @@
 
 #define FLOPPY_144_SECTORS_PER_TRACK 18
 
-void send_byte(u8 byte);
-u8   read_byte();
+void send_byte(uint8_t byte);
+uint8_t   read_byte();
 void configure();
 void reset();
-int send_command(enum FloppyCommands command, u8* params, int params_size, u8* returns, int returns_size, int(*callback)());
-void lba_2_chs(u32 lba, u16* cyl, u16* head, u16* sector);
+int send_command(enum FloppyCommands command, uint8_t* params, int params_size, uint8_t* returns, int returns_size, int(*callback)());
+void lba_2_chs(uint32_t lba, uint16_t* cyl, uint16_t* head, uint16_t* sector);
 
-u8 buf1[512];
-u8 buf2[2048];
-u32 floppy_buffer_index = 0;
-u32 floppy_buffer_size = 0;
-u8* floppy_buffer;
+uint8_t buf1[512];
+uint8_t buf2[2048];
+uint32_t floppy_buffer_index = 0;
+uint32_t floppy_buffer_size = 0;
+uint8_t* floppy_buffer;
 
 int read_callback(){
     if(floppy_buffer_index >= floppy_buffer_size) port_byte_in(DATA_FIFO);
@@ -49,19 +49,19 @@ void init_floppy(){
     configure();
     // send_command(0xc0 | READ_DATA, read_params, 8, read_returns, 7, read_callback);
     k_memset(&buf1, 512, 0x5a);
-    write_floppy((u8*)&buf1, 512, 0);
-    // read_floppy((u8*)&buf2, 2048, 0);
+    write_floppy((uint8_t*)&buf1, 512, 0);
+    // read_floppy((uint8_t*)&buf2, 2048, 0);
 
 }
 
-void read_floppy(u8* buffer, u32 size, u32 lba){
+void read_floppy(uint8_t* buffer, uint32_t size, uint32_t lba){
     floppy_buffer_index = 0; floppy_buffer_size = size; floppy_buffer = buffer;
 
-    u16 cyl, head, sector;
+    uint16_t cyl, head, sector;
     lba_2_chs(lba, &cyl, &head, &sector);
 
 
-    u8 read_params[8] = {
+    uint8_t read_params[8] = {
             (head << 2) | 0x00, // (head << 2) | drive number
             cyl,                // cylinder number
             head,               // head number (again!)
@@ -71,18 +71,18 @@ void read_floppy(u8* buffer, u32 size, u32 lba){
             0x1b,               // GAP 1 default size (no idea!)
             0xff                // Sector size specification (512 bytes per sector)
     };
-    u8 read_returns[7] = { 0, 0, 0, 0, 0, 0, 0};
+    uint8_t read_returns[7] = { 0, 0, 0, 0, 0, 0, 0};
     send_command(MT | MF | READ_DATA, read_params, 8, read_returns, 7, read_callback);
 }
 
-void write_floppy(u8* buffer, u32 size, u32 lba){
+void write_floppy(uint8_t* buffer, uint32_t size, uint32_t lba){
     floppy_buffer_index = 0; floppy_buffer_size = size; floppy_buffer = buffer;
 
-    u16 cyl, head, sector;
+    uint16_t cyl, head, sector;
     lba_2_chs(lba, &cyl, &head, &sector);
 
 
-    u8 read_params[8] = {
+    uint8_t read_params[8] = {
             (head << 2) | 0x00, // (head << 2) | drive number
             cyl,                // cylinder number
             head,               // head number (again!)
@@ -92,7 +92,7 @@ void write_floppy(u8* buffer, u32 size, u32 lba){
             0x1b,               // GAP 1 default size (no idea!)
             0xff                // Sector size specification (512 bytes per sector)
     };
-    u8 read_returns[7] = { 0, 0, 0, 0, 0, 0, 0};
+    uint8_t read_returns[7] = { 0, 0, 0, 0, 0, 0, 0};
     int y = send_command(MT | MF | SK | WRITE_DATA, read_params, 8, read_returns, 7, write_callback);
 }
 
@@ -104,14 +104,14 @@ void configure(){
 
     // TODO - do return check
 
-    u8 conf_params[3] = { 0x00, 0b01010000, 0x00 };
-    u8 lock_returns[1];
-    send_command(CONFIGURE, (u8*)&conf_params, 3, 0, 0, 0);
-    send_command(MT | LOCK, 0, 0, (u8*)&lock_returns, 1, 0);
+    uint8_t conf_params[3] = { 0x00, 0b01010000, 0x00 };
+    uint8_t lock_returns[1];
+    send_command(CONFIGURE, (uint8_t*)&conf_params, 3, 0, 0, 0);
+    send_command(MT | LOCK, 0, 0, (uint8_t*)&lock_returns, 1, 0);
 
 }
 
-int send_command(enum FloppyCommands command, u8* params, int params_size, u8* returns, int returns_size, int(*callback)()){
+int send_command(enum FloppyCommands command, uint8_t* params, int params_size, uint8_t* returns, int returns_size, int(*callback)()){
     // 1. Read MSR and 2. Check if it's correct
     if((port_byte_in(MAIN_STATUS_REGISTER)& 0xc0) != 0x80) return -1;
 

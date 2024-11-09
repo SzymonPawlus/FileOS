@@ -15,9 +15,11 @@ void str_upper_case(char* str);
 void str_lower_case(char* str);
 void str_trail_char(char* str, char x);
 void str_cpy(char* source, char* destination);
-void str_cpy_size(char* source, char* destination, u32 size);
-void str_insert(char* str, char x, u16 amount);
-u32 str_len(char* str);
+void str_cpy_size(char* source, char* destination, uint32_t size);
+void str_insert(char* str, char x, uint16_t amount);
+uint32_t str_len(const char* str);
+char* strchr(const char* str, char c);
+char* strtok(char* str, char delim);
 
 
 #endif //FILEOS_STRINGS_H

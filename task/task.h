@@ -9,7 +9,7 @@
 
 struct Task {
     void* stack_top;
-    u32 cr3;
+    uint32_t cr3;
     struct Task* next_task; // for linked list
     enum  {
         BLOCK,

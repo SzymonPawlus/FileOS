@@ -13,13 +13,13 @@
 #include "floppy_pio.h"
 
 struct FloppyModeFunctions {
-    int (*read)(FLOPPY_DEVICE*, u8*, u32, u32);
-    int (*write)(FLOPPY_DEVICE*, u8*, u32, u32);
+    int (*read)(FLOPPY_DEVICE*, uint8_t*, uint32_t, uint32_t);
+    int (*write)(FLOPPY_DEVICE*, uint8_t*, uint32_t, uint32_t);
 };
 
 // Floppies structs
 static FLOPPY_DEVICE floppies[2];
-static u8 current_drive = 0;
+static uint8_t current_drive = 0;
 static struct FloppyModeFunctions current_mode;
 
 
@@ -30,7 +30,7 @@ int floppy_init(FloppyMode mode) {
 
     // Detect Version
     floppy_write_cmd(VERSION);
-    u8 version = floppy_read_data();
+    uint8_t version = floppy_read_data();
     if(version != 0x90) error |= E_FLOPPY_OLD_DEVICE | ED_FLOPPY;
 
     // Set configuration
@@ -63,8 +63,8 @@ int floppy_init(FloppyMode mode) {
     return error;
 }
 
-int floppy_read(struct VFS_DEVICE *device, u8 *buffer, u32 sectors, u32 lba) {
+int floppy_read(struct VFS_DEVICE *device, uint8_t *buffer, uint32_t sectors, uint32_t lba) {
 }
 
-int floppy_write(struct VFS_DEVICE *device, u8 *buffer, u32 sectors, u32 lba) {
+int floppy_write(struct VFS_DEVICE *device, uint8_t *buffer, uint32_t sectors, uint32_t lba) {
 }

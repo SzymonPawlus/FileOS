@@ -24,7 +24,7 @@ clear_screen(){
 }
 
 void
-kprint_at_size(char* message, u32 size, int col, int row) {
+kprint_at_size(char* message, uint32_t size, int col, int row) {
     int offset;
 
     if(col >= 0 && row >= 0)
@@ -44,7 +44,7 @@ kprint_at_size(char* message, u32 size, int col, int row) {
 }
 
 void
-kprint_size(char* message, u32 size){
+kprint_size(char* message, uint32_t size){
     kprint_at_size(message, size, -1, -1);
 }
 

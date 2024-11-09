@@ -3,9 +3,9 @@ HEADERS = $(wildcard kernel/*.h drivers/*.h drivers/floppy/*.h drivers/ata/*.h c
 
 OBJ = ${C_SOURCES:.c=.o cpu/interrupt.o cpu/gdt_setup.o task/context_switch.o}
 
-CC = /home/szymon/opt/cross/bin/i686-elf-gcc
-LD = /home/szymon/opt/cross/bin/i686-elf-ld
-GDB = /home/szymon/opt/cross/bin/i686-elf-gdb
+CC = /home/szymonp/opt/cross/bin/i686-elf-gcc
+LD = /home/szymonp/opt/cross/bin/i686-elf-ld
+GDB = /home/szymonp/opt/cross/bin/i686-elf-gdb
 
 .PHONY: all debug clean
 
@@ -43,12 +43,12 @@ clean:
 	rm -rf bin/os_image.bin kernel.elf floppy.img *.bin *.dis *.o
 	rm $(OBJ)
 
-
 floppy.img:
-	dd if=/dev/zero of=floppy.img bs=512 count=5760
+	dd if=/dev/zero of=floppy.img bs=512 count=100000
 	sudo losetup /dev/loop0 floppy.img
-	sudo mkdosfs -F 12 /dev/loop0
-	sudo mount /dev/loop0 /mnt -t msdos -o "fat=12"
-	sudo cp ./test.txt /mnt/test.txt
+	sudo mkdosfs -F 32 /dev/loop0
+	sudo mount /dev/loop0 /mnt -t msdos -o "fat=32"
+	sudo cp -r ./fat_example_root/* /mnt/
 	sudo umount /mnt
 	sudo losetup -d /dev/loop0
+	sudo chmod 777 floppy.img

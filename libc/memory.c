@@ -17,7 +17,7 @@ const void* heap_end   = &__HEAP_END;
 /*void* current = &__HEAP;
 int allocations = 0;
 
-void* k_malloc(u32 size) {
+void* k_malloc(uint32_t size) {
     if(current + size <= heap_end){
         void* pointer = current;
         current += size;
@@ -35,7 +35,7 @@ void k_free(void* pointer) {
 // Linked list allocator
 
 struct BlockNode {
-    u32              size;
+    uint32_t              size;
     struct BlockNode* next;
 };
 
@@ -45,11 +45,11 @@ struct BlockNode* merge(struct BlockNode* l, struct BlockNode* r);
 struct BlockNode* head = (struct BlockNode*)&__HEAP;
 
 void k_malloc_init(){
-    head->size = (u32) (heap_end - heap_start - sizeof(struct BlockNode));
+    head->size = (uint32_t) (heap_end - heap_start - sizeof(struct BlockNode));
     head->next = 0;
 };
 
-void* k_malloc(u32 size) {
+void* k_malloc(uint32_t size) {
     // Look for the node which includes enough space
     struct BlockNode* node = head;
     while(node->size < (size + sizeof(struct BlockNode))){
@@ -85,7 +85,7 @@ void k_free(void* pointer) {
 
 }
 
-void* k_realloc(void *p, u32 size){
+void* k_realloc(void *p, uint32_t size){
     if(!p)
         return k_malloc(size);
     void* np = k_malloc(size);
@@ -98,8 +98,8 @@ void* k_realloc(void *p, u32 size){
 }
 
 // Utilities
-void k_memset(void* memory, u32 size, u8 value){
-    u8* temp = (u8*) memory;
+void k_memset(void* memory, uint32_t size, uint8_t value){
+    uint8_t* temp = (uint8_t*) memory;
     for (; size > 0; size--)
         *temp++ = value;
 }
@@ -119,17 +119,17 @@ struct BlockNode* merge(struct BlockNode* l, struct BlockNode* r){
     return l;
 }
 
-int k_memcmp(void* mem1, void* mem2, u32 size){
-    u8* memcp1 = mem1;
-    u8* memcp2 = mem2;
-    for (u32 i = 0; i < size; ++i){
+int k_memcmp(void* mem1, void* mem2, uint32_t size){
+    uint8_t* memcp1 = mem1;
+    uint8_t* memcp2 = mem2;
+    for (uint32_t i = 0; i < size; ++i){
         if(*memcp1 != *memcp2) return 1;
         memcp1++; memcp2++;
     }
     return 0;
 }
 
-void k_memreplace(u8* mem, char to_replace, char to_replace_with, u32 size){
+void k_memreplace(uint8_t* mem, char to_replace, char to_replace_with, uint32_t size){
     for (int i = 0; i < size; ++i)
         if(mem[i] == to_replace) mem[i] = to_replace_with;
 }

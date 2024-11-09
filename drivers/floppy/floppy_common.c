@@ -6,21 +6,21 @@
 #include "../../fs/vfs.h"
 
 // Digital Output Register
-u8 DOR;
+uint8_t DOR;
 
 int get_MSR(){
     return port_byte_in(MAIN_STATUS_REGISTER);
 }
 
-u8 get_FIFO(){
+uint8_t get_FIFO(){
     return port_byte_in(DATA_FIFO);
 }
 
-void send_FIFO(u8 byte){
+void send_FIFO(uint8_t byte){
     port_byte_out(DATA_FIFO, byte);
 }
 
-int floppy_write_cmd(u8 cmd){
+int floppy_write_cmd(uint8_t cmd){
     for (int i = 0; i < 600; ++i)
         if((get_MSR() & RQM)) {
             send_FIFO(cmd);
@@ -29,13 +29,13 @@ int floppy_write_cmd(u8 cmd){
     return E_FLOPPY_TIMEOUT | ED_FLOPPY | E_ERROR;
 }
 
-u8 floppy_read_data(){
+uint8_t floppy_read_data(){
     for (int i = 0; i < 600; ++i)
         if((get_MSR() & RQM)) return get_FIFO();
     return 0;
 }
 
-DMA lba_2_chs(u32 lba, const FLOPPY_DEVICE* drive)
+DMA lba_2_chs(uint32_t lba, const FLOPPY_DEVICE* drive)
 {
     DMA dma = {};
     if(!drive->sectors_per_track) return dma;
@@ -45,7 +45,7 @@ DMA lba_2_chs(u32 lba, const FLOPPY_DEVICE* drive)
     return dma;
 }
 
-void set_floppy_params(enum FloppyType type, u8 drive, FLOPPY_DEVICE *drive_struct) {
+void set_floppy_params(enum FloppyType type, uint8_t drive, FLOPPY_DEVICE *drive_struct) {
     drive_struct->type         = type;
     drive_struct->drive_number = drive;
     drive_struct->heads        = 2;
@@ -103,14 +103,14 @@ void floppy_detect_drives(FLOPPY_DEVICE *drives_to_detect) {
 }
 
 // Common floppy functions
-void floppy_sense_interrupt(u32 *st0, u32 *cyl){
+void floppy_sense_interrupt(uint32_t *st0, uint32_t *cyl){
     floppy_write_cmd(SENSE_INTERRUPT);
 
     *st0 = floppy_read_data();
     *cyl = floppy_read_data();
 }
 
-void floppy_motor(int on, u8 drive) {
+void floppy_motor(int on, uint8_t drive) {
     if(on)
         DOR = (DOR & 0x0f) | (0x1 << (drive + 4));
     else
@@ -118,16 +118,16 @@ void floppy_motor(int on, u8 drive) {
     port_byte_out(DIGITAL_OUTPUT_REGISTER, DOR);
 }
 
-void set_DOR(u8 data){
+void set_DOR(uint8_t data){
     DOR = (DOR & 0xf0) | (data & 0x0f);
     port_byte_out(DIGITAL_OUTPUT_REGISTER, DOR);
 }
 
-void select_drive(u8 drive_number){
+void select_drive(uint8_t drive_number){
     DOR = (DOR & 0xfc) | (drive_number & 0x03);
 }
 
-int calculate_error(const u8* st0, const u8* st1, const u8* st2, const u8* bps){
+int calculate_error(const uint8_t* st0, const uint8_t* st1, const uint8_t* st2, const uint8_t* bps){
     int error = 0;
     if(*st0 & 0xC0)        error = E_FLOPPY_NO_DRIVE                ;
     if(*st1 & 0x80)        error = E_FLOPPY_END_OF_CYLINDER         ;

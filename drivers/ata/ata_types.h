@@ -54,12 +54,12 @@ typedef struct {
     enum AtaAddressingMode addressing_mode;
 
     // Drive location
-    u16 port_base;
-    u16 control_base;
+    uint16_t port_base;
+    uint16_t control_base;
     enum AtaDrive drive;
 
     // Drive info
-    u32 addressable_sectors;
+    uint32_t addressable_sectors;
 } ATA_DEVICE;
 
 #endif // ATA_TYPES_H_

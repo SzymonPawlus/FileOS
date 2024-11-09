@@ -5,8 +5,8 @@
 #include "util.h"
 #include "../cpu/types.h"
 
-void k_memcpy(void *source, void *dest, int bytes){
-    u8* s = source;u8* d = dest;
+void k_memcpy(const void *source, void *dest, int bytes){
+    const uint8_t* s = source;uint8_t* d = dest;
     for (int i = 0; i < bytes; ++i)
         d[i] = s[i];
 }

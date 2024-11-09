@@ -90,14 +90,14 @@ enum FloppyType {
 
 typedef struct{
     enum FloppyType type;
-    u8 drive_number;
-    u16 cylinders;
-    u16 heads;
-    u16 sectors_per_track;
+    uint8_t drive_number;
+    uint16_t cylinders;
+    uint16_t heads;
+    uint16_t sectors_per_track;
 } FLOPPY_DEVICE;
 
 typedef struct DMA {
-    u16 cylinder, head, sector;
+    uint16_t cylinder, head, sector;
 } DMA;
 
 typedef enum {

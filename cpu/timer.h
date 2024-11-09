@@ -8,6 +8,6 @@
 #include "../kernel/util.h"
 #include "isr.h"
 
-void init_timer(u32 freq, isr_t handler);
+void init_timer(uint32_t freq, isr_t handler);
 
 #endif //FILEOS_TIMER_H

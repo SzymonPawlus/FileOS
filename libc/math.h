@@ -7,8 +7,8 @@
 
 #include "../cpu/types.h"
 
-u32 max(u32 a, u32 b);
-u32 min(u32 a, u32 b);
-u32 clamp(u32 val, u32 a, u32 b);
+uint32_t max(uint32_t a, uint32_t b);
+uint32_t min(uint32_t a, uint32_t b);
+uint32_t clamp(uint32_t val, uint32_t a, uint32_t b);
 
 #endif //FILEOS_MATH_H

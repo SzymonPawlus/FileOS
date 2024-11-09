@@ -9,7 +9,7 @@
 #include "floppy_types.h"
 
 void init_floppy_dma();
-int read_floppy_dma(FLOPPY_DEVICE *drive, u8* buffer, u32 sectors, u32 lba);
-int write_floppy_dma(FLOPPY_DEVICE *drive, u8* buffer, u32 sectors, u32 lba);
+int read_floppy_dma(FLOPPY_DEVICE *drive, uint8_t* buffer, uint32_t sectors, uint32_t lba);
+int write_floppy_dma(FLOPPY_DEVICE *drive, uint8_t* buffer, uint32_t sectors, uint32_t lba);
 
 #endif //FILEOS_FLOPPY_DMA_H

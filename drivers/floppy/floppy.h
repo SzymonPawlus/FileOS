@@ -11,7 +11,7 @@
 
 int floppy_init(FloppyMode mode);
 
-int floppy_read(struct VFS_DEVICE *device, u8 *buffer, u32 sectors, u32 lba);
-int floppy_write(struct VFS_DEVICE *device, u8 *buffer, u32 sectors, u32 lba);
+int floppy_read(struct VFS_DEVICE *device, uint8_t *buffer, uint32_t sectors, uint32_t lba);
+int floppy_write(struct VFS_DEVICE *device, uint8_t *buffer, uint32_t sectors, uint32_t lba);
 
 #endif //FILEOS_FLOPPY_H

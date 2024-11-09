@@ -4,17 +4,17 @@
 
 #include "math.h"
 
-u32 max(u32 a, u32 b){
+uint32_t max(uint32_t a, uint32_t b){
     if(a > b) return a;
     else return b;
 
 }
 
-u32 min(u32 a, u32  b){
+uint32_t min(uint32_t a, uint32_t  b){
     if(a < b) return a;
     else return b;
 }
 
-u32 clamp(u32 val, u32 a, u32 b){
+uint32_t clamp(uint32_t val, uint32_t a, uint32_t b){
     return max(a, min(val, b));
 }

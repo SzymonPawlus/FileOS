@@ -11,13 +11,13 @@ int floppy_transfer_pio(
         const FLOPPY_DEVICE *drive,
         DMA dma,
         enum FloppyTransmitDirection dir,
-        u32 size,
-        u32 *seg_read,
+        uint32_t size,
+        uint32_t *seg_read,
         void (*callback)(void));
 
-static u32 floppy_buffer_index = 0;
-static u32 floppy_buffer_size  = 0;
-static u8* floppy_buffer       = 0;
+static uint32_t floppy_buffer_index = 0;
+static uint32_t floppy_buffer_size  = 0;
+static uint8_t* floppy_buffer       = 0;
 
 void read_callback(){
     if(floppy_buffer_index >= floppy_buffer_size) port_byte_in(DATA_FIFO);
@@ -35,13 +35,13 @@ void init_floppy_pio(){
 }
 
 // Check for correctness
-int read_floppy_pio(FLOPPY_DEVICE* drive, u8* buffer, u32 sectors, u32 lba){
-    u32 seg_read, total_sectors = 0;
+int read_floppy_pio(FLOPPY_DEVICE* drive, uint8_t* buffer, uint32_t sectors, uint32_t lba){
+    uint32_t seg_read, total_sectors = 0;
     floppy_buffer = buffer;
 
     while(total_sectors < sectors){
         DMA dma = lba_2_chs(lba + total_sectors, drive);
-        u32 size = 512 * (sectors - total_sectors);
+        uint32_t size = 512 * (sectors - total_sectors);
         int error = floppy_transfer_pio(drive, dma, floppy_dir_read, size, &seg_read, read_callback);
         if(error & E_ERROR) return error;
         total_sectors += seg_read;
@@ -49,12 +49,12 @@ int read_floppy_pio(FLOPPY_DEVICE* drive, u8* buffer, u32 sectors, u32 lba){
     return 0;
 }
 
-int write_floppy_pio(FLOPPY_DEVICE* drive, u8* buffer, u32 sectors, u32 lba){
-    u32 seg_read, total_sectors = 0;
+int write_floppy_pio(FLOPPY_DEVICE* drive, uint8_t* buffer, uint32_t sectors, uint32_t lba){
+    uint32_t seg_read, total_sectors = 0;
     floppy_buffer = buffer;
 
     while(total_sectors < sectors){
-        u32 size = min(512 * (sectors - total_sectors), 512 * drive->sectors_per_track);
+        uint32_t size = min(512 * (sectors - total_sectors), 512 * drive->sectors_per_track);
         DMA dma = lba_2_chs(lba + total_sectors, drive);
         int error = floppy_transfer_pio(drive, dma, floppy_dir_write, size, &seg_read, write_callback);
         if(error & E_ERROR) return error;
@@ -67,8 +67,8 @@ int floppy_transfer_pio(
         const FLOPPY_DEVICE *drive,
         DMA dma,
         enum FloppyTransmitDirection dir,
-        u32 size,
-        u32 *seg_read,
+        uint32_t size,
+        uint32_t *seg_read,
         void (*callback)(void))
 {
     if(drive->type == F_NO_DRIVE) return E_FLOPPY_NO_DRIVE;
@@ -76,9 +76,9 @@ int floppy_transfer_pio(
     select_drive(drive->drive_number);
     // Write appropriate command
 
-    u32 sectors = (size / 512) + ((size % 512) != 0);
-    u32 final_preview = sectors + dma.sector - 1;
-    u32 final = final_preview > drive->sectors_per_track ? drive->sectors_per_track : final_preview;
+    uint32_t sectors = (size / 512) + ((size % 512) != 0);
+    uint32_t final_preview = sectors + dma.sector - 1;
+    uint32_t final = final_preview > drive->sectors_per_track ? drive->sectors_per_track : final_preview;
     *seg_read = final - dma.sector + 1;
     floppy_buffer_size = 512 * sectors;
 

@@ -12,12 +12,12 @@
 const struct FAT_NODE root_dir = { .attributes = FAT_DA_DIR  };
 
 static struct FAT_NODE node_buffer[32];
-static u32 node_buffer_lba = 0;
+static uint32_t node_buffer_lba = 0;
 static char path_buffer[13];
 
 struct {
-    u8 buffer[0x600]; // 3 disk sectors sized buffer
-    u32 current_sector; // Sector of FAT that was currently loaded
+    uint8_t buffer[0x600]; // 3 disk sectors sized buffer
+    uint32_t current_sector; // Sector of FAT that was currently loaded
     int changed;
 } FAT_buffer = { "" , -1, 0};
 
@@ -39,28 +39,28 @@ static int is_node_empty(struct FAT_NODE *node);
 static struct FAT_NODE *resolve_root(struct VFS_PARTITION *part, FAT_NODE_POSITION *position);
 static struct FAT_NODE *
 resolve_dir(struct VFS_PARTITION *part, struct FAT_NODE *resolve_node, FAT_NODE_POSITION *position);
-static struct FAT_NODE *list_root(u32 *entries, struct VFS_PARTITION *partition);
-static struct FAT_NODE* list_dir(u32* entries, struct VFS_NODE* resolve_node);
+static struct FAT_NODE *list_root(uint32_t *entries, struct VFS_PARTITION *partition);
+static struct FAT_NODE* list_dir(uint32_t* entries, struct VFS_NODE* resolve_node);
 
 static int add_node_root(struct FAT_NODE *node, struct VFS_PARTITION *part);
 static void add_node_dir(struct VFS_NODE* parent_node, struct FAT_NODE* node);
-static void fill_node(struct FAT_NODE *node, char *name, u8 attributes, u32 start_cluster, u32 size);
+static void fill_node(struct FAT_NODE *node, char *name, uint8_t attributes, uint32_t start_cluster, uint32_t size);
 
 // FAT buffer functions
-static u32 get_entry_offset(struct VFS_PARTITION *part, u32 cluster);
-static u32 read_fat_value(struct VFS_PARTITION *part, u32 cluster);
-static void write_fat_value(struct VFS_PARTITION *part, u32 cluster, u32 value);
+static uint32_t get_entry_offset(struct VFS_PARTITION *part, uint32_t cluster);
+static uint32_t read_fat_value(struct VFS_PARTITION *part, uint32_t cluster);
+static void write_fat_value(struct VFS_PARTITION *part, uint32_t cluster, uint32_t value);
 static void flush_fat_buffer(struct VFS_PARTITION *part);
 
 // FAT functions
-static u8 *read_chain(struct VFS_PARTITION *part, u32 cluster, u32 *length);
-static u32 *reserve_chain(struct VFS_PARTITION *part, u32 clusters);
-static void fill_chain(struct VFS_PARTITION *part, u32 *clusters_list, u32 clusters, u8 *buffer);
-static u32 *resize_chain(struct VFS_PARTITION *part, u32 cluster, u32 clusters);
-static void fill_chain_sector_from_begin_offset(struct VFS_PARTITION *part, u32 cluster, u8 *buffer, u32 offset);
+static uint8_t *read_chain(struct VFS_PARTITION *part, uint32_t cluster, uint32_t *length);
+static uint32_t *reserve_chain(struct VFS_PARTITION *part, uint32_t clusters);
+static void fill_chain(struct VFS_PARTITION *part, uint32_t *clusters_list, uint32_t clusters, uint8_t *buffer);
+static uint32_t *resize_chain(struct VFS_PARTITION *part, uint32_t cluster, uint32_t clusters);
+static void fill_chain_sector_from_begin_offset(struct VFS_PARTITION *part, uint32_t cluster, uint8_t *buffer, uint32_t offset);
 
 // FAT utils
-static u32 cluster_FAT_offset(u32 cluster);
+static uint32_t cluster_FAT_offset(uint32_t cluster);
 
 struct VFS_PARTITION fat12_init(struct VFS_DEVICE *device) {
     FAT12_BOOT_RECORD* info = k_malloc(512);
@@ -116,9 +116,9 @@ fat12_create_file (struct VFS_PARTITION *this, char* path) {
     struct FAT_NODE node = find_in_directory(this, &parent_node, path, NULL);
     if(is_node_empty(&node)){
         // Do the stuff
-        u32 clusters = 1;
-        u32* clusters_list = reserve_chain(this, clusters);
-        u8 buffer[512] = {};
+        uint32_t clusters = 1;
+        uint32_t* clusters_list = reserve_chain(this, clusters);
+        uint8_t buffer[512] = {};
         fill_chain(this, clusters_list, clusters, &buffer[0]);
         struct FAT_NODE new_node = { };
         fill_node(&new_node, &path_buffer[0], 0, *clusters_list, 0);
@@ -170,7 +170,7 @@ fat12_make_dir (struct VFS_PARTITION *this, char* path){
 
         k_memset(here_dir, 512, 0x00);
 
-        u32* dir_cluster = reserve_chain(this, 1);
+        uint32_t* dir_cluster = reserve_chain(this, 1);
 
         char* resolved_name = fat_12_stat_resolve_path(path);
 
@@ -179,7 +179,7 @@ fat12_make_dir (struct VFS_PARTITION *this, char* path){
         fill_node(&node, resolved_name, FAT_DA_DIR, *dir_cluster, 0);
 
 
-        fill_chain(this, dir_cluster, 1, (u8 *) here_dir);
+        fill_chain(this, dir_cluster, 1, (uint8_t *) here_dir);
 
         if(!parent_node.start_low) { // Root directory
             add_node_root(&node, this);
@@ -203,15 +203,15 @@ fat12_remove_dir (struct VFS_PARTITION *this, char* path){
 }
 
 int
-fat12_write_file (struct VFS_NODE* this, u8* buffer, u32 size, u32 offset){
-    u32 all_clusters    = ((offset + size) / 512) + 1; // TODO - make 512 a constant
-    u32 current_cluster = this->FS_reference; // TODO - check if given cluster is correct
-    u32 end = offset + size;
+fat12_write_file (struct VFS_NODE* this, uint8_t* buffer, uint32_t size, uint32_t offset){
+    uint32_t all_clusters    = ((offset + size) / 512) + 1; // TODO - make 512 a constant
+    uint32_t current_cluster = this->FS_reference; // TODO - check if given cluster is correct
+    uint32_t end = offset + size;
     FAT12_PARTITION* fat_partition = this->partition->partition_data;
-    u32 bytes_written = 0;
+    uint32_t bytes_written = 0;
 
     int writing = 0;
-    u32 last_cluster;
+    uint32_t last_cluster;
 
     for (int i = 0; i < all_clusters; ++i) {
         if(!writing){
@@ -234,11 +234,11 @@ fat12_write_file (struct VFS_NODE* this, u8* buffer, u32 size, u32 offset){
 
             last_cluster = current_cluster;
         }
-        u32 current_offset_low =   i      * 512; // TODO - make 512 a constant
-        u32 current_offset_high =   (i + 1)      * 512; // TODO - make 512 a constant
+        uint32_t current_offset_low =   i      * 512; // TODO - make 512 a constant
+        uint32_t current_offset_high =   (i + 1)      * 512; // TODO - make 512 a constant
 
-        u32 low  = clamp(offset, current_offset_low, current_offset_high);
-        u32 high = clamp(end   , current_offset_low, current_offset_high);
+        uint32_t low  = clamp(offset, current_offset_low, current_offset_high);
+        uint32_t high = clamp(end   , current_offset_low, current_offset_high);
 
         // Then we can write something
         if(low < high){
@@ -248,7 +248,7 @@ fat12_write_file (struct VFS_NODE* this, u8* buffer, u32 size, u32 offset){
                 bytes_written += 512; // TODO - extract to constant
             }
             else{
-                u8 temp_buffer[512];
+                uint8_t temp_buffer[512];
                 this->partition->device->read(this->partition->device, &temp_buffer[0], 1, current_cluster + fat_partition->data_offset - 2);
                 k_memcpy(&buffer[bytes_written], &temp_buffer[low % 512], high - low);
                 this->partition->device->write(this->partition->device, &temp_buffer[0], 1, current_cluster + fat_partition->data_offset - 2);
@@ -274,21 +274,21 @@ fat12_write_file (struct VFS_NODE* this, u8* buffer, u32 size, u32 offset){
 }
 
 int
-fat12_read_file  (struct VFS_NODE* this, u8* buffer, u32 size, u32 offset){
-    u32 all_clusters    = ((offset + size) / 512) + 1; // TODO - make 512 a constant
-    u32 current_cluster = this->FS_reference;
-    u32 end = offset + size;
+fat12_read_file  (struct VFS_NODE* this, uint8_t* buffer, uint32_t size, uint32_t offset){
+    uint32_t all_clusters    = ((offset + size) / 512) + 1; // TODO - make 512 a constant
+    uint32_t current_cluster = this->FS_reference;
+    uint32_t end = offset + size;
     FAT12_PARTITION* fat_partition = this->partition->partition_data;
-    u32 bytes_read = 0;
+    uint32_t bytes_read = 0;
 
 
     for (int i = 0; i < all_clusters; ++i) {
         if(!(0 < current_cluster && current_cluster < 0xff8)) return ED_FAT | E_ERROR;
-        u32 current_offset_low =   i      * 512; // TODO - make 512 a constant
-        u32 current_offset_high =   (i + 1)      * 512; // TODO - make 512 a constant
+        uint32_t current_offset_low =   i      * 512; // TODO - make 512 a constant
+        uint32_t current_offset_high =   (i + 1)      * 512; // TODO - make 512 a constant
 
-        u32 low  = clamp(offset, current_offset_low, current_offset_high);
-        u32 high = clamp(end   , current_offset_low, current_offset_high);
+        uint32_t low  = clamp(offset, current_offset_low, current_offset_high);
+        uint32_t high = clamp(end   , current_offset_low, current_offset_high);
 
         // Then we can write something
         if(low < high){
@@ -298,7 +298,7 @@ fat12_read_file  (struct VFS_NODE* this, u8* buffer, u32 size, u32 offset){
                 bytes_read += 512; // TODO - extract to constant
                 }
             else{
-                u8 temp_buffer[512];
+                uint8_t temp_buffer[512];
                 this->partition->device->read(this->partition->device, &temp_buffer[0], 1, current_cluster + fat_partition->data_offset - 2);
                 k_memcpy(&temp_buffer[low % 512], &buffer[bytes_read], high - low);
                 bytes_read += high - low;
@@ -311,9 +311,9 @@ fat12_read_file  (struct VFS_NODE* this, u8* buffer, u32 size, u32 offset){
 
 // Private section
 struct VFS_NODE*
-fat12_list_dir   (struct VFS_NODE* this, u32* size){
+fat12_list_dir   (struct VFS_NODE* this, uint32_t* size){
     struct FAT_NODE* node;
-    u32 max_entries = 0;
+    uint32_t max_entries = 0;
     if(!this->FS_reference){
         node = list_root(&max_entries, this->partition);
     }else{
@@ -330,7 +330,7 @@ fat12_list_dir   (struct VFS_NODE* this, u32* size){
 
     for (int i = 0; i < max_entries; ++i) {
         if(temp_node->filename[0] == '\0') break;
-        else if((u8)temp_node->filename[0] == 0xe5);
+        else if((uint8_t)temp_node->filename[0] == 0xe5);
         else {
             if((temp_node->attributes & FAT_DA_HIDDEN) == FAT_DA_HIDDEN) {
                 temp_node++; continue;
@@ -390,8 +390,8 @@ empty_node(){
 
 static struct VFS_NODE
 fat_to_vfs(struct VFS_PARTITION *partition, struct FAT_NODE *fat_node, FAT_NODE_POSITION *position) {
-    u8 buffer[sizeof(struct FAT_NODE)] = {};
-    if(!k_memcmp((u8 *) &fat_node, &buffer[0], sizeof(struct FAT_NODE))) return vfs_empty_node();
+    uint8_t buffer[sizeof(struct FAT_NODE)] = {};
+    if(!k_memcmp((uint8_t *) &fat_node, &buffer[0], sizeof(struct FAT_NODE))) return vfs_empty_node();
 
     struct VFS_NODE v_node = {
             .partition = partition,
@@ -410,15 +410,15 @@ fat_to_vfs(struct VFS_PARTITION *partition, struct FAT_NODE *fat_node, FAT_NODE_
 
 static int
 is_node_empty(struct FAT_NODE *node) {
-    u8 buffer[sizeof(struct FAT_NODE)] = {};
-    return !k_memcmp((u8 *) node, &buffer[0], sizeof(struct FAT_NODE));
+    uint8_t buffer[sizeof(struct FAT_NODE)] = {};
+    return !k_memcmp((uint8_t *) node, &buffer[0], sizeof(struct FAT_NODE));
 }
 
 int fat12_remove_node(struct VFS_PARTITION *this, struct FAT_NODE *parent_node, char *name) {
     FAT12_PARTITION* partition = this->partition_data;
     char* resolved_name = fat_12_stat_resolve_path(name);
     if(parent_node->start_low) {
-        u32 current_cluster = parent_node->start_low;
+        uint32_t current_cluster = parent_node->start_low;
         while (0 < current_cluster && current_cluster < 0xff8) {
             struct FAT_NODE nodes[16];
             this->device->read(this->device, &nodes[0], 1, partition->data_offset - 2 + current_cluster);
@@ -457,7 +457,7 @@ int fat12_remove_node(struct VFS_PARTITION *this, struct FAT_NODE *parent_node, 
     return E_ERROR | ED_FAT;
 }
 
-/*struct VFS_NODE fat12_write_file_o(struct VFS_NODE *parent_node, u32 size, u8 *buffer, char *name) {
+/*struct VFS_NODE fat12_write_file_o(struct VFS_NODE *parent_node, uint32_t size, uint8_t *buffer, char *name) {
     fat_12_stat_resolve_path(name);
     struct FAT_NODE* node;
     if(!parent_node->FS_reference) { // Root directory
@@ -471,8 +471,8 @@ int fat12_remove_node(struct VFS_PARTITION *this, struct FAT_NODE *parent_node, 
         if((node->attributes & FAT_DA_DIR) == FAT_DA_DIR) kprint("Not a file! \n");
         else if((node->attributes & FAT_DA_HIDDEN) == FAT_DA_HIDDEN) kprint("Couldn't access file!");
         else{
-            u32 clusters = MAX((size >> 9) + (size % 512 == 511), 1);
-            u32* clusters_list = resize_chain(parent_node->partition, node->start_low, clusters);
+            uint32_t clusters = MAX((size >> 9) + (size % 512 == 511), 1);
+            uint32_t* clusters_list = resize_chain(parent_node->partition, node->start_low, clusters);
             fill_chain(parent_node->partition, clusters_list, clusters, buffer);
             k_free(clusters_list);
         }
@@ -480,8 +480,8 @@ int fat12_remove_node(struct VFS_PARTITION *this, struct FAT_NODE *parent_node, 
     }
         // Create file
     else {
-        u32 clusters = MAX((size >> 9) + (size % 512 == 511), 1);
-        u32* clusters_list = reserve_chain(parent_node->partition, clusters);
+        uint32_t clusters = MAX((size >> 9) + (size % 512 == 511), 1);
+        uint32_t* clusters_list = reserve_chain(parent_node->partition, clusters);
         fill_chain(parent_node->partition, clusters_list, clusters, buffer);
         struct FAT_NODE new_node = { };
         fill_node(&new_node, &path_buffer[0], 0, *clusters_list, size);
@@ -495,7 +495,7 @@ int fat12_remove_node(struct VFS_PARTITION *this, struct FAT_NODE *parent_node, 
     }
 }*/
 
-/*void fat12_read_file(char *path, u8* buffer){
+/*void fat12_read_file(char *path, uint8_t* buffer){
     fat_12_stat_resolve_path(path);
     struct FAT_NODE* node;
     if(!current_node.start_low) { // Root directory
@@ -508,9 +508,9 @@ int fat12_remove_node(struct VFS_PARTITION *this, struct FAT_NODE *parent_node, 
         if((node->attributes & FAT_DA_DIR) == FAT_DA_DIR) kprint("Not a file!\n");
         else if((node->attributes & FAT_DA_HIDDEN) == FAT_DA_HIDDEN) kprint("Cannot find file!");
         else{
-            u32 length;
-            u8* some_buffer = read_chain(0, node->start_low, &length);
-            kprint((s8*)some_buffer);
+            uint32_t length;
+            uint8_t* some_buffer = read_chain(0, node->start_low, &length);
+            kprint((int8_t*)some_buffer);
             k_free(some_buffer);
         }
     }else kprint("File doesn't exist\n");
@@ -535,7 +535,7 @@ FAT12_PARTITION init_partition(FAT12_BOOT_RECORD* bootsector){
 
     partition.data_offset = partition.root_offset + partition.root_size;
 
-    k_memcpy((s8*)&bootsector->ebr.volume_label_string, (s8*)&partition.label, 11);
+    k_memcpy((int8_t*)&bootsector->ebr.volume_label_string, (int8_t*)&partition.label, 11);
 
     return partition;
 }
@@ -573,21 +573,21 @@ char * fat_12_stat_resolve_path(char* path) {
         else
             k_memset(&temp_buffer[8], dot_position - 8, ' ');
     }
-    k_memreplace((u8*)&temp_buffer[0], 0, ' ', 11);
+    k_memreplace((uint8_t*)&temp_buffer[0], 0, ' ', 11);
     str_cpy(temp_buffer, &path_buffer[0]);
     return temp_buffer;
 }
 
-/*void get_directories_from(u32 lba){
-    floppy_read_sector((u8 *) &node_buffer, lba);
+/*void get_directories_from(uint32_t lba){
+    floppy_read_sector((uint8_t *) &node_buffer, lba);
 }*/
 
 struct FAT_NODE *resolve_node_buffer(FAT_NODE_POSITION *position) {
     for (int i = 0; i < 16; ++i) {
         struct FAT_NODE* node = &node_buffer[i];
         if(node->filename[0] == 0) return 0;
-        if((u8)node->filename[0] == 0xe5) continue;
-        if(!k_memcmp((u8*)&node->filename[0],(u8*)&path_buffer[0], 11)) {
+        if((uint8_t)node->filename[0] == 0xe5) continue;
+        if(!k_memcmp((uint8_t*)&node->filename[0],(uint8_t*)&path_buffer[0], 11)) {
             if(position) position->offset = i;
             return node;
         }
@@ -601,9 +601,9 @@ struct FAT_NODE *resolve_root(struct VFS_PARTITION *part, FAT_NODE_POSITION *pos
     if(path_buffer[0] == 0x20) return &root_dir;
     FAT12_PARTITION* partition = part->partition_data;
 
-    for (u32 i = 0; i < partition->root_size; ++i) {
+    for (uint32_t i = 0; i < partition->root_size; ++i) {
         node_buffer_lba = partition->root_offset + i;
-        part->device->read(part->device, (u8 *) &node_buffer, 1, node_buffer_lba);
+        part->device->read(part->device, (uint8_t *) &node_buffer, 1, node_buffer_lba);
         if((node = resolve_node_buffer(position))) {
             if(position) position->sector = partition->root_offset + i;
             return node;
@@ -615,12 +615,12 @@ struct FAT_NODE *resolve_root(struct VFS_PARTITION *part, FAT_NODE_POSITION *pos
 
 struct FAT_NODE *resolve_dir(struct VFS_PARTITION *part, struct FAT_NODE *resolve_node, FAT_NODE_POSITION *position) {
     struct FAT_NODE* node;
-    u32 current_cluster = resolve_node->start_low;
+    uint32_t current_cluster = resolve_node->start_low;
     FAT12_PARTITION* partition = part->partition_data;
 
     while(0 < current_cluster && current_cluster < 0xff8) {
         node_buffer_lba = partition->data_offset - 2 + current_cluster;
-        part->device->read(part->device, (u8 *) &node_buffer, 1, node_buffer_lba);
+        part->device->read(part->device, (uint8_t *) &node_buffer, 1, node_buffer_lba);
         if((node = resolve_node_buffer(position))) {
             if(position) position->sector = node_buffer_lba;
             return node;
@@ -631,16 +631,16 @@ struct FAT_NODE *resolve_dir(struct VFS_PARTITION *part, struct FAT_NODE *resolv
     return 0;
 }
 
-struct FAT_NODE *list_root(u32 *entries, struct VFS_PARTITION *partition) {
+struct FAT_NODE *list_root(uint32_t *entries, struct VFS_PARTITION *partition) {
     FAT12_PARTITION* fat_partition = partition->partition_data;
     struct FAT_NODE* node = k_malloc(fat_partition->root_size * 512);
     k_memset(node, fat_partition->root_size * 512, 0x00);
-    partition->device->read(partition->device, (u8 *) node, fat_partition->root_size, fat_partition->root_offset);
+    partition->device->read(partition->device, (uint8_t *) node, fat_partition->root_size, fat_partition->root_offset);
     *entries = fat_partition->root_entries;
     return node;
 }
 
-struct FAT_NODE* list_dir(u32* entries, struct VFS_NODE* resolve_node){
+struct FAT_NODE* list_dir(uint32_t* entries, struct VFS_NODE* resolve_node){
     struct FAT_NODE* node = (struct FAT_NODE *) read_chain(resolve_node->partition, resolve_node->FS_reference,
                                                            entries);
     *entries *= 16;
@@ -650,7 +650,7 @@ struct FAT_NODE* list_dir(u32* entries, struct VFS_NODE* resolve_node){
 
 int add_node_root(struct FAT_NODE *node, struct VFS_PARTITION *part) {
     // Prepare variables
-    u32 entries;
+    uint32_t entries;
     FAT12_PARTITION* partition = part->partition_data;
 
     struct FAT_NODE* root = list_root(&entries, part); // Needed for free
@@ -661,17 +661,17 @@ int add_node_root(struct FAT_NODE *node, struct VFS_PARTITION *part) {
     // Iterate until 0x00 - it means the end of directory
     for (; root_node->filename[0] != 0 ; root_node++, i++) {
         // If exists node with the same name - return
-        if(!k_memcmp((u8 *) root_node, (u8 *) node, 11)) { k_free(root); return 0; }
+        if(!k_memcmp((uint8_t *) root_node, (uint8_t *) node, 11)) { k_free(root); return 0; }
 
         // If first byte 0xe5 than sign place to write
-        if((u8)root_node->filename[0] == 0xe5 && !place_to_write) place_to_write = root_node;
+        if((uint8_t)root_node->filename[0] == 0xe5 && !place_to_write) place_to_write = root_node;
     }
 
     // Write a node if enough place in root folder
     if(!place_to_write && i < partition->root_entries) place_to_write = root_node;
     if(place_to_write) {
         k_memcpy(node, place_to_write, 32);
-        part->device->write(part->device, (u8 *) root, partition->root_size, partition->root_offset);
+        part->device->write(part->device, (uint8_t *) root, partition->root_size, partition->root_offset);
     }
     k_free(root);
 
@@ -680,8 +680,8 @@ int add_node_root(struct FAT_NODE *node, struct VFS_PARTITION *part) {
 
 void add_node_dir(struct VFS_NODE* parent_node, struct FAT_NODE* node){
     // Setup data
-    u32 length;
-    u32 node_to_write = 0;
+    uint32_t length;
+    uint32_t node_to_write = 0;
     FAT12_PARTITION* partition = parent_node->partition->partition_data;
     struct FAT_NODE* directories = (struct FAT_NODE *) read_chain(parent_node->partition, parent_node->FS_reference, &length);
     length <<= 4;
@@ -690,13 +690,13 @@ void add_node_dir(struct VFS_NODE* parent_node, struct FAT_NODE* node){
     // Iterate over directory
     for (i = 0; i < length; ++i) {
         // If exists node with same name - return (and free memory)
-        if(!k_memcmp((u8*)&node->filename[0], (u8*)&directories[i].filename[0], 11)){
+        if(!k_memcmp((uint8_t*)&node->filename[0], (uint8_t*)&directories[i].filename[0], 11)){
             k_free(directories);
             return;
         }
 
         // If exists node with 0xE5 byte at the beginning - mark it as possible to write and no need for extension
-        if((u8)directories[i].filename[0] == 0xe5 && !node_to_write)
+        if((uint8_t)directories[i].filename[0] == 0xe5 && !node_to_write)
             node_to_write = i;
 
         // If exists node with 0x00 byte at the beginning - mark no need for extension
@@ -707,10 +707,10 @@ void add_node_dir(struct VFS_NODE* parent_node, struct FAT_NODE* node){
     }
     // If extension needed - add new cluster to the chain
     if(i >= length && !node_to_write){
-        u32* clusters_list = resize_chain(parent_node->partition, parent_node->FS_reference, (length >> 4) + 1);
-        u8 buffer[512] = "";
+        uint32_t* clusters_list = resize_chain(parent_node->partition, parent_node->FS_reference, (length >> 4) + 1);
+        uint8_t buffer[512] = "";
         k_memcpy(node, &buffer[0], 32);
-        u32 try = clusters_list[length >> 4];
+        uint32_t try = clusters_list[length >> 4];
         parent_node->partition->device->write(parent_node->partition->device, &buffer[0], 1, clusters_list[length >> 4] + partition->data_offset - 2);
         k_free(clusters_list);
     }
@@ -723,12 +723,12 @@ void add_node_dir(struct VFS_NODE* parent_node, struct FAT_NODE* node){
     k_free(directories);
 }
 
-static u8 *read_chain(struct VFS_PARTITION *part, u32 cluster, u32 *length) {
+static uint8_t *read_chain(struct VFS_PARTITION *part, uint32_t cluster, uint32_t *length) {
 
     FAT12_PARTITION* partition = part->partition_data;
     // Array of clusters to read
-    u32* clusters_list = k_malloc(256 * sizeof(u32));
-    u32 current_cluster = clusters_list[0] = cluster;
+    uint32_t* clusters_list = k_malloc(256 * sizeof(uint32_t));
+    uint32_t current_cluster = clusters_list[0] = cluster;
     int i;
     for (i = 1; i < 256; ++i) {
         // Obtain new cluster value from current cluster
@@ -738,7 +738,7 @@ static u8 *read_chain(struct VFS_PARTITION *part, u32 cluster, u32 *length) {
 
     // Read data from clusters
     *length = i;
-    u8* buffer = k_malloc(512 * i);
+    uint8_t* buffer = k_malloc(512 * i);
     k_memset(buffer, 512 * i, 0x00);
     for (int j = 0; j < i; ++j) {
         part->device->read(part->device, (buffer + 512 * j), 1, clusters_list[j] + partition->data_offset - 2);
@@ -749,13 +749,13 @@ static u8 *read_chain(struct VFS_PARTITION *part, u32 cluster, u32 *length) {
     return buffer;
 }
 
-static u32 *reserve_chain(struct VFS_PARTITION *part, u32 clusters) {
-    u32 clusters_marked = 0;
-    u32 current_cluster = 2;
+static uint32_t *reserve_chain(struct VFS_PARTITION *part, uint32_t clusters) {
+    uint32_t clusters_marked = 0;
+    uint32_t current_cluster = 2;
 
     FAT12_PARTITION* partition = part->partition_data;
 
-    u32* clusters_list = k_malloc((clusters + 1) * sizeof(u32));
+    uint32_t* clusters_list = k_malloc((clusters + 1) * sizeof(uint32_t));
 
     // Find empty clusters
     while(clusters_marked < clusters){
@@ -780,16 +780,16 @@ static u32 *reserve_chain(struct VFS_PARTITION *part, u32 clusters) {
     return clusters_list;
 }
 
-void fill_chain(struct VFS_PARTITION *part, u32 *clusters_list, u32 clusters, u8 *buffer) {
+void fill_chain(struct VFS_PARTITION *part, uint32_t *clusters_list, uint32_t clusters, uint8_t *buffer) {
     FAT12_PARTITION* partition = part->partition_data;
 
     for (int i = 0; i < clusters; ++i)
         part->device->write(part->device, buffer, 1, partition->data_offset - 2 + clusters_list[i]);
 }
 
-void fill_chain_sector_from_begin_offset(struct VFS_PARTITION *part, u32 cluster, u8 *buffer, u32 offset) {
+void fill_chain_sector_from_begin_offset(struct VFS_PARTITION *part, uint32_t cluster, uint8_t *buffer, uint32_t offset) {
     FAT12_PARTITION* partition = part->partition_data;
-    u32 current_cluster = cluster;
+    uint32_t current_cluster = cluster;
     int i;
     for (i = 0; i < offset; ++i) {
         // Obtain new cluster value from current cluster
@@ -801,11 +801,11 @@ void fill_chain_sector_from_begin_offset(struct VFS_PARTITION *part, u32 cluster
 
 }
 
-static u32 *resize_chain(struct VFS_PARTITION *part, u32 cluster, u32 clusters) {
+static uint32_t *resize_chain(struct VFS_PARTITION *part, uint32_t cluster, uint32_t clusters) {
     // Read chain
     FAT12_PARTITION * partition = part->partition_data;
-    u32* clusters_list = k_malloc(256 * sizeof(u32));
-    u32 current_cluster = clusters_list[0] = cluster;
+    uint32_t* clusters_list = k_malloc(256 * sizeof(uint32_t));
+    uint32_t current_cluster = clusters_list[0] = cluster;
     int length;
     for (length = 1; length < 256; ++length) {
         // Obtain new cluster value from current cluster
@@ -845,13 +845,13 @@ static u32 *resize_chain(struct VFS_PARTITION *part, u32 cluster, u32 clusters) 
     return clusters_list;
 }
 
-static u32 cluster_FAT_offset(u32 cluster){
+static uint32_t cluster_FAT_offset(uint32_t cluster){
     return (cluster + (cluster / 2)) / 512;
 }
 
-static u32 get_entry_offset(struct VFS_PARTITION *part, u32 cluster) {
+static uint32_t get_entry_offset(struct VFS_PARTITION *part, uint32_t cluster) {
     FAT12_PARTITION * partition = part->partition_data;
-    u32 sector_to_load = cluster_FAT_offset(cluster);
+    uint32_t sector_to_load = cluster_FAT_offset(cluster);
     if( (sector_to_load / 3) != (FAT_buffer.current_sector / 3) ){ // Check whether current FAT sectors are enough
         // Cache FAT changes if needed
         flush_fat_buffer(part);
@@ -865,16 +865,16 @@ static u32 get_entry_offset(struct VFS_PARTITION *part, u32 cluster) {
     return (cluster + (cluster / 2) % (512 * 3));
 }
 
-static u32 read_fat_value(struct VFS_PARTITION *part, u32 cluster) {
-    u32 offset = get_entry_offset(part, cluster);
+static uint32_t read_fat_value(struct VFS_PARTITION *part, uint32_t cluster) {
+    uint32_t offset = get_entry_offset(part, cluster);
     if(cluster & 1)
         return ((FAT_buffer.buffer[offset] & 0xf0) >> 4) | (FAT_buffer.buffer[offset + 1] << 4);
     else
         return FAT_buffer.buffer[offset] | ((FAT_buffer.buffer[offset + 1] & 0x0f) << 8);
 }
 
-static void write_fat_value(struct VFS_PARTITION *part, u32 cluster, u32 value) {
-    u32 offset = get_entry_offset(part, cluster);
+static void write_fat_value(struct VFS_PARTITION *part, uint32_t cluster, uint32_t value) {
+    uint32_t offset = get_entry_offset(part, cluster);
     if(cluster & 1){ // Odd
         FAT_buffer.buffer[offset] = ((value & 0x0f) << 4) | (FAT_buffer.buffer[offset] & 0x0f);
         FAT_buffer.buffer[offset + 1] = (value & 0xff0) >> 4;
@@ -895,10 +895,10 @@ static void flush_fat_buffer(struct VFS_PARTITION *part) {
     }
 }
 
-static void fill_node(struct FAT_NODE *node, char *name, u8 attributes, u32 start_cluster, u32 size) {
+static void fill_node(struct FAT_NODE *node, char *name, uint8_t attributes, uint32_t start_cluster, uint32_t size) {
     if(name) {
         str_cpy(name, &node->filename[0]);
-        k_memreplace((u8 *) &node->filename[0], 0, ' ', 11);
+        k_memreplace((uint8_t *) &node->filename[0], 0, ' ', 11);
     }
     node->attributes = attributes;
     node->start_low = start_cluster;

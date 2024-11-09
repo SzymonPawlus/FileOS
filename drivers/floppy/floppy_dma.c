@@ -8,16 +8,16 @@
 #include "../../fs/vfs.h"
 #include "../../libc/math.h"
 
-static int floppy_dma_init(enum FloppyTransmitDirection dir, u32 size);
-static enum FloppyErrors floppy_do_track(const FLOPPY_DEVICE *drive, DMA dma, enum FloppyTransmitDirection dir, u32 size, u32 *seg_read);
+static int floppy_dma_init(enum FloppyTransmitDirection dir, uint32_t size);
+static enum FloppyErrors floppy_do_track(const FLOPPY_DEVICE *drive, DMA dma, enum FloppyTransmitDirection dir, uint32_t size, uint32_t *seg_read);
 static int floppy_calibrate(const FLOPPY_DEVICE *drive);
-static int floppy_seek(u8 cyli, u32 head, const FLOPPY_DEVICE *drive);
+static int floppy_seek(uint8_t cyli, uint32_t head, const FLOPPY_DEVICE *drive);
 static int floppy_reset(const FLOPPY_DEVICE *drive);
 
 // Transfer buffer
 #define floppy_dmalen 0x8000
 extern unsigned int _DMA_BUFFER_POS;
-u8* floppy_dmabuf = (u8 *) &_DMA_BUFFER_POS;
+uint8_t* floppy_dmabuf = (uint8_t *) &_DMA_BUFFER_POS;
 
 // TODO - Add timeouts
 volatile int floppy_dma_waiting = 1;
@@ -32,12 +32,12 @@ static void floppy_wait(){
 
 
 // Public functions
-int read_floppy_dma(FLOPPY_DEVICE *drive, u8* buffer, u32 sectors, u32 lba){
-    u32 seg_read, total_sectors = 0;
+int read_floppy_dma(FLOPPY_DEVICE *drive, uint8_t* buffer, uint32_t sectors, uint32_t lba){
+    uint32_t seg_read, total_sectors = 0;
 
     while(total_sectors < sectors){
         DMA dma = lba_2_chs(lba + total_sectors, drive);
-        u32 size = min(512 * (sectors - total_sectors), 512 * 8); // TODO - maybe solve in better way
+        uint32_t size = min(512 * (sectors - total_sectors), 512 * 8); // TODO - maybe solve in better way
         // Gives page fault when there's more than 4KB of mem
         int error = floppy_do_track(drive, dma, floppy_dir_read, size, &seg_read);
         if(error & E_ERROR) return error;
@@ -48,10 +48,10 @@ int read_floppy_dma(FLOPPY_DEVICE *drive, u8* buffer, u32 sectors, u32 lba){
 
 }
 
-int write_floppy_dma(FLOPPY_DEVICE *drive, u8* buffer, u32 sectors, u32 lba){
-    u32 seg_read, total_sectors = 0;
+int write_floppy_dma(FLOPPY_DEVICE *drive, uint8_t* buffer, uint32_t sectors, uint32_t lba){
+    uint32_t seg_read, total_sectors = 0;
     while(total_sectors < sectors){
-        u32 size = min(512 * (sectors - total_sectors), 512 * 8);
+        uint32_t size = min(512 * (sectors - total_sectors), 512 * 8);
         DMA dma = lba_2_chs(lba + total_sectors, drive);
         k_memcpy((char*)buffer, floppy_dmabuf, (int)size);
         int error = floppy_do_track(drive, dma, floppy_dir_write, size, &seg_read);
@@ -67,14 +67,14 @@ void init_floppy_dma() {
 }
 
 // Private functions
-static int floppy_dma_init(enum FloppyTransmitDirection dir, u32 size){
+static int floppy_dma_init(enum FloppyTransmitDirection dir, uint32_t size){
     union {
-        u8 b[4];
-        u32 l;
+        uint8_t b[4];
+        uint32_t l;
     } a, c;
 
-    a.l = (u32) floppy_dmabuf;
-    c.l = (u32) size - 1;
+    a.l = (uint32_t) floppy_dmabuf;
+    c.l = (uint32_t) size - 1;
 
     if(size > floppy_dmalen) {
         return E_FLOPPY_DMA_BUFFER_BIG | ED_FLOPPY | E_ERROR;
@@ -84,7 +84,7 @@ static int floppy_dma_init(enum FloppyTransmitDirection dir, u32 size){
         return E_FLOPPY_DMA_BUFFER_INVALID_LOC | ED_FLOPPY | E_ERROR;
     }
 
-    u8 mode;
+    uint8_t mode;
     switch (dir) {
         case floppy_dir_read: {
             mode = 0x46;
@@ -117,10 +117,10 @@ static int floppy_dma_init(enum FloppyTransmitDirection dir, u32 size){
     return E_FLOPPY_NO_ERROR;
 }
 
-static enum FloppyErrors floppy_do_track(const FLOPPY_DEVICE *drive, DMA dma, enum FloppyTransmitDirection dir, u32 size, u32 *seg_read) {
+static enum FloppyErrors floppy_do_track(const FLOPPY_DEVICE *drive, DMA dma, enum FloppyTransmitDirection dir, uint32_t size, uint32_t *seg_read) {
     if(drive->type == F_NO_DRIVE) return E_FLOPPY_NO_DRIVE | ED_FLOPPY | E_ERROR;
     select_drive(drive->drive_number);
-    u8 cmd;
+    uint8_t cmd;
 
     switch(dir) {
         case floppy_dir_read:
@@ -134,9 +134,9 @@ static enum FloppyErrors floppy_do_track(const FLOPPY_DEVICE *drive, DMA dma, en
     }
 
     // TODO - Extract calculating sectors
-    u32 sectors = (size / 512) + ((size % 512) != 0);
-    u32 final_preview = sectors + dma.sector - 1;
-    u32 final = final_preview > drive->sectors_per_track ? drive->sectors_per_track : final_preview;
+    uint32_t sectors = (size / 512) + ((size % 512) != 0);
+    uint32_t final_preview = sectors + dma.sector - 1;
+    uint32_t final = final_preview > drive->sectors_per_track ? drive->sectors_per_track : final_preview;
     *seg_read = final - dma.sector + 1;
 
 
@@ -199,7 +199,7 @@ static int floppy_reset(const FLOPPY_DEVICE *drive) {
     floppy_wait();
 
     {
-        u32 st0, cyl;
+        uint32_t st0, cyl;
         floppy_sense_interrupt(&st0, &cyl);
     }
 
@@ -215,7 +215,7 @@ static int floppy_reset(const FLOPPY_DEVICE *drive) {
 }
 
 static int floppy_calibrate(const FLOPPY_DEVICE *drive) {
-    u32 st0, cyl = -1;
+    uint32_t st0, cyl = -1;
 
     floppy_motor(1, drive->drive_number);
 
@@ -243,8 +243,8 @@ static int floppy_calibrate(const FLOPPY_DEVICE *drive) {
     return -1;
 }
 
-static int floppy_seek(u8 cyli, u32 head, const FLOPPY_DEVICE *drive) {
-    u32 st0, cyl;
+static int floppy_seek(uint8_t cyli, uint32_t head, const FLOPPY_DEVICE *drive) {
+    uint32_t st0, cyl;
 
     floppy_motor(1, drive->drive_number);
 
